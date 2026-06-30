@@ -673,3 +673,5 @@ label textarea {
     grid-template-columns: 1fr;
   }
 }
+
+.kpi small { display:block; margin-top:6px; color:#64748b; font-size:12px; font-weight:700; line-height:1.35; }
