@@ -1,6 +1,0 @@
-{
-  "build": {
-    "type": "dockerfile"
-  },
-  "start": "npm start"
-}
