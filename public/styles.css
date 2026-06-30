@@ -675,3 +675,399 @@ label textarea {
 }
 
 .kpi small { display:block; margin-top:6px; color:#64748b; font-size:12px; font-weight:700; line-height:1.35; }
+
+/* V1.9 UI refinement: New Taipei emblem + clearer operating layout */
+:root {
+  --ntpc-yellow: #facc15;
+  --ntpc-green: #5bb24f;
+  --ntpc-orange: #e94e1b;
+  --ntpc-blue: #2f75b5;
+}
+
+body {
+  background:
+    radial-gradient(circle at 10% 8%, rgba(47, 117, 181, .32), transparent 26%),
+    radial-gradient(circle at 88% 0%, rgba(250, 204, 21, .12), transparent 28%),
+    radial-gradient(circle at 75% 65%, rgba(6, 182, 212, .14), transparent 35%),
+    linear-gradient(135deg, #061221 0%, #0b1830 46%, #0f172a 100%);
+}
+
+.sidebar {
+  padding: 24px 20px;
+  background:
+    linear-gradient(180deg, rgba(3, 7, 18, .98), rgba(15, 23, 42, .92)),
+    radial-gradient(circle at 30% 0%, rgba(47, 117, 181, .32), transparent 45%);
+}
+
+.brand-block {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.brand-logo-wrap {
+  width: 76px;
+  height: 76px;
+  display: grid;
+  place-items: center;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid rgba(255, 255, 255, .75);
+  box-shadow: 0 18px 42px rgba(2, 8, 23, .36), inset 0 0 0 1px rgba(15, 23, 42, .06);
+  overflow: hidden;
+}
+
+.brand-logo-wrap img {
+  width: 66px;
+  height: 66px;
+  object-fit: contain;
+  filter: drop-shadow(0 5px 8px rgba(15, 23, 42, .14));
+}
+
+.brand-mark {
+  width: auto;
+  height: auto;
+  display: block;
+  place-items: unset;
+  border-radius: 0;
+  color: #67e8f9;
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: .14em;
+}
+
+.brand-title {
+  margin-top: 8px;
+  font-size: 22px;
+  letter-spacing: -.02em;
+}
+
+.brand-subtitle {
+  color: #cbd5e1;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.identity-card {
+  background: linear-gradient(180deg, rgba(15, 23, 42, .72), rgba(30, 41, 59, .54));
+}
+
+.side-mini-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  margin: 14px 0 18px;
+}
+
+.side-mini-grid div {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, .07);
+  border: 1px solid rgba(148, 163, 184, .18);
+}
+
+.side-mini-grid b {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(6, 182, 212, .14);
+  color: #67e8f9;
+  font-size: 12px;
+}
+
+.side-mini-grid span {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.hero-card {
+  position: relative;
+  overflow: hidden;
+  padding: 24px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, .14);
+  background:
+    linear-gradient(135deg, rgba(3, 7, 18, .64), rgba(15, 23, 42, .42)),
+    radial-gradient(circle at 88% 10%, rgba(6, 182, 212, .2), transparent 28%);
+  box-shadow: 0 20px 60px rgba(2, 8, 23, .22);
+  margin-bottom: 18px;
+}
+
+.hero-card::after {
+  content: "";
+  position: absolute;
+  width: 340px;
+  height: 340px;
+  right: -82px;
+  bottom: -126px;
+  background: url('/assets/new-taipei-logo.png') center/contain no-repeat;
+  opacity: .055;
+  pointer-events: none;
+}
+
+.hero-copy {
+  position: relative;
+  z-index: 1;
+}
+
+.agency-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #67e8f9;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.agency-line img {
+  width: 34px;
+  height: 34px;
+  padding: 4px;
+  border-radius: 11px;
+  background: rgba(255, 255, 255, .95);
+  object-fit: contain;
+}
+
+.process-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.process-chips span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .1);
+  border: 1px solid rgba(255, 255, 255, .14);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.process-chips span::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 999px;
+  background: #22d3ee;
+  box-shadow: 0 0 0 3px rgba(34, 211, 238, .12);
+}
+
+.top-actions {
+  position: relative;
+  z-index: 1;
+  justify-content: flex-end;
+  min-width: 360px;
+}
+
+.top-actions .secondary-btn,
+.top-actions .primary-btn {
+  border-radius: 16px;
+  padding: 11px 16px;
+}
+
+.kpi-grid {
+  gap: 16px;
+}
+
+.kpi {
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, .96), rgba(241, 245, 249, .88));
+  border: 1px solid rgba(255, 255, 255, .86);
+  min-height: 118px;
+}
+
+.kpi span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kpi span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--blue);
+}
+
+.kpi.warn span::before { background: var(--amber); }
+.kpi.ok span::before { background: var(--green); }
+.kpi.info span::before { background: var(--cyan); }
+.kpi.done span::before { background: var(--slate); }
+
+.case-panel {
+  border-radius: 28px;
+}
+
+.panel-head {
+  align-items: center;
+  background:
+    linear-gradient(180deg, rgba(248, 250, 252, .98), rgba(241, 245, 249, .92));
+}
+
+.tabs {
+  padding: 4px;
+  border-radius: 18px;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 14px;
+  padding: 10px 14px;
+}
+
+.tab-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.tab-dot.accuse { background: var(--orange); }
+.tab-dot.inspect { background: var(--blue); }
+
+.tab.active {
+  background: linear-gradient(135deg, #0f172a, #1e3a8a);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, .16);
+}
+
+.search,
+select,
+input,
+textarea {
+  border-radius: 14px;
+}
+
+.search:focus,
+select:focus,
+input:focus,
+textarea:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, .18);
+}
+
+.action-row {
+  background: #f8fafc;
+}
+
+.status-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 999px;
+  background: #e0f2fe;
+  color: #075985;
+  font-weight: 800;
+}
+
+thead th {
+  background: linear-gradient(180deg, #0f172a, #111827);
+}
+
+tbody tr {
+  transition: background .15s ease, box-shadow .15s ease;
+}
+
+tbody tr:hover {
+  background: #eef6ff;
+}
+
+.row-actions {
+  flex-wrap: wrap;
+  max-width: 250px;
+}
+
+.badge,
+.repeat-tag {
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .36);
+}
+
+.modal-card {
+  border: 1px solid rgba(255, 255, 255, .72);
+}
+
+.modal-head {
+  background:
+    linear-gradient(135deg, rgba(15, 23, 42, 1), rgba(30, 58, 138, .96));
+}
+
+@media (max-width: 1180px) {
+  .topbar.hero-card {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .top-actions {
+    min-width: 0;
+    justify-content: flex-start;
+  }
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .sidebar {
+    padding: 18px 16px;
+  }
+  .brand-block {
+    grid-template-columns: 62px minmax(0, 1fr);
+  }
+  .brand-logo-wrap {
+    width: 62px;
+    height: 62px;
+    border-radius: 18px;
+  }
+  .brand-logo-wrap img {
+    width: 54px;
+    height: 54px;
+  }
+  .brand-title {
+    font-size: 19px;
+  }
+  .hero-card {
+    padding: 18px;
+    border-radius: 22px;
+  }
+  .agency-line {
+    letter-spacing: .06em;
+  }
+  .agency-line img {
+    width: 30px;
+    height: 30px;
+  }
+  .process-chips span {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  .tabs,
+  .tabs .tab {
+    width: 100%;
+  }
+  .tabs {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+}

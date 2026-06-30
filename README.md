@@ -192,3 +192,11 @@ GOOGLE_SHEET_ID=你的GoogleSheetID
 # 可選；若填完整網址會優先使用
 GOOGLE_SHEET_URL=https://docs.google.com/spreadsheets/d/你的GoogleSheetID/edit
 ```
+
+## V1.9 介面優化
+
+- 已將新北市徽章加入系統側欄與首頁主視覺。
+- 優化首頁版面：新增流程提示膠囊、視覺層次與按鈕排列。
+- 優化案件清單區：告發 / 通檢分頁加上辨識色點，搜尋、篩選與操作區更清楚。
+- 保留 V1.8 原有功能與 API 架構，不變更 Google Sheet 同步、匯出、審核、行政追蹤、修改、刪除等流程。
+- Zeabur 維持 PORT=8080，網路連線埠維持 HTTP :8080。

@@ -9,14 +9,24 @@
 <body>
   <div class="app-shell">
     <aside class="sidebar">
-      <div class="brand-mark">EEMS</div>
-      <div class="brand-title">聲音照相案件<br/>審核與行政追蹤</div>
-      <div class="brand-subtitle">聯韻聲學環保顧問股份有限公司</div>
+      <div class="brand-block">
+        <div class="brand-logo-wrap"><img src="/assets/new-taipei-logo.png" alt="新北市徽章" /></div>
+        <div>
+          <div class="brand-mark">NTPC EPB</div>
+          <div class="brand-title">聲音照相案件<br/>審核與行政追蹤</div>
+          <div class="brand-subtitle">聯韻聲學環保顧問股份有限公司</div>
+        </div>
+      </div>
       <div class="side-line"></div>
-      <div class="side-card">
+      <div class="side-card identity-card">
         <span>角色定位</span>
         <strong>新北市環保局委外顧問</strong>
         <p>協助案件初核、長官核可、告發與通檢流程追蹤。</p>
+      </div>
+      <div class="side-mini-grid">
+        <div><b>01</b><span>Sheet同步</span></div>
+        <div><b>02</b><span>長官審核</span></div>
+        <div><b>03</b><span>行政追蹤</span></div>
       </div>
       <label class="passcode-block">
         <span>內部驗證碼</span>
@@ -27,11 +37,17 @@
     </aside>
 
     <main class="main">
-      <header class="topbar">
-        <div>
-          <div class="eyebrow">New Taipei City EPB｜Case Review Console</div>
+      <header class="topbar hero-card">
+        <div class="hero-copy">
+          <div class="agency-line"><img src="/assets/new-taipei-logo.png" alt="新北市徽章" /><span>New Taipei City EPB｜Case Review Console</span></div>
           <h1>超標車輛裁罰案件審核系統</h1>
           <p>長官勾選核可後，案件自動進入後續行政流程追蹤：公文文號、發文日期、裁處字號、送達日期、繳款、通檢與結案。</p>
+          <div class="process-chips" aria-label="使用流程">
+            <span>Google Sheet同步</span>
+            <span>案件分流</span>
+            <span>長官核可</span>
+            <span>行政追蹤</span>
+          </div>
         </div>
         <div class="top-actions">
           <button id="openSheetBtn" class="secondary-btn">一鍵開啟 Google Sheet 表單</button>
@@ -49,11 +65,11 @@
         <div class="kpi done"><span>已結案</span><strong id="kpiClosed">0</strong></div>
       </section>
 
-      <section class="panel">
+      <section class="panel case-panel">
         <div class="panel-head">
-          <div class="tabs">
-            <button class="tab active" data-type="告發">告發案件</button>
-            <button class="tab" data-type="通檢">通檢案件</button>
+          <div class="tabs" aria-label="案件類型切換">
+            <button class="tab active" data-type="告發"><span class="tab-dot accuse"></span>告發案件</button>
+            <button class="tab" data-type="通檢"><span class="tab-dot inspect"></span>通檢案件</button>
           </div>
           <div class="toolbar">
             <input id="searchInput" class="search" placeholder="搜尋車號、地點、公文文號、案件編號" />
@@ -68,7 +84,7 @@
           <button id="exportBtn" class="secondary-btn">匯出 Google Sheet 同格式</button>
           <button id="bulkApproveBtn" class="primary-btn">勾選案件｜長官核可</button>
           <button id="bulkRejectBtn" class="danger-btn">勾選案件｜退回修正</button>
-          <span class="hint">目前類型：<b id="currentTypeLabel">告發</b></span>
+          <span class="hint status-hint">目前類型：<b id="currentTypeLabel">告發</b></span>
         </div>
 
         <div class="table-wrap">
