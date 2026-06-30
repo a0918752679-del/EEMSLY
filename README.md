@@ -168,7 +168,7 @@ GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=base64後的service_account_json
 - 匯出至 Excel / 推送至 Google Sheet 時，案件編號仍維持原始狀態；空白即輸出空白。
 
 
-## V1.7 修正：加重註記判斷
+## V1.8 修正：加重註記判斷
 
 - 取消以「前次告發」欄位只要有文字就自動加重的邏輯，避免「無」、「否」或一般備註被誤判。
 - 加重註記只會在以下情境出現：
@@ -176,3 +176,19 @@ GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=base64後的service_account_json
   2. Google Sheet 明確填寫「是否累犯」、「1年內再次違反」、「是否重複超標」、「加重」為正向值。
   3. 「重複超標註記／加重註記／加重說明」明確包含「加重、重複超標、累犯、再次違反」等字樣。
 - 若車號未重複且沒有明確加重欄位，系統不會自動標示加重。
+
+
+## V1.8 更新
+
+- 移除前台「匯入 Excel」按鍵，避免局內同仁誤用本機檔案匯入。
+- 新增「一鍵開啟 Google Sheet 表單」按鍵。
+- 新增 `/api/sheet-url`，會優先使用 `GOOGLE_SHEET_URL`；未設定時，使用 `GOOGLE_SHEET_ID` 自動產生 Google Sheet 開啟網址。
+- 原 Excel 匯入 API 保留於後端，避免舊流程或內部測試工具中斷，但前台不再顯示。
+
+### Google Sheet 開啟按鍵環境變數
+
+```env
+GOOGLE_SHEET_ID=你的GoogleSheetID
+# 可選；若填完整網址會優先使用
+GOOGLE_SHEET_URL=https://docs.google.com/spreadsheets/d/你的GoogleSheetID/edit
+```

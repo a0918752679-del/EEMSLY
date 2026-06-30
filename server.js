@@ -530,6 +530,13 @@ app.get('/api/health', async (req, res) => {
   res.json(payload);
 });
 
+app.get('/api/sheet-url', (req, res) => {
+  const directUrl = normalizeText(process.env.GOOGLE_SHEET_URL);
+  const sheetId = normalizeText(process.env.GOOGLE_SHEET_ID);
+  const url = directUrl || (sheetId ? `https://docs.google.com/spreadsheets/d/${encodeURIComponent(sheetId)}/edit` : '');
+  res.json({ ok: Boolean(url), url });
+});
+
 app.get('/api/schema', (req, res) => {
   res.json(SCHEMA);
 });

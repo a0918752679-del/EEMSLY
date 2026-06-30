@@ -149,7 +149,7 @@ function renderStatusFilter() {
 function renderRows() {
   const tbody = $('caseTbody');
   if (!state.cases.length) {
-    tbody.innerHTML = `<tr><td colspan="12" class="empty">目前沒有${escapeHtml(state.type)}案件。可先匯入 Excel，或從 Google Sheet 同步。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="12" class="empty">目前沒有${escapeHtml(state.type)}案件。可先從 Google Sheet 同步。</td></tr>`;
     return;
   }
 
@@ -314,7 +314,6 @@ async function importExcel(file) {
     body: form
   });
   alert(`匯入完成：新增 ${data.inserted} 筆、更新 ${data.updated} 筆。`);
-  $('fileInput').value = '';
   await loadCases();
 }
 
@@ -444,6 +443,19 @@ async function saveAdmin(event) {
   await loadCases();
 }
 
+async function openGoogleSheet() {
+  try {
+    const data = await api('/api/sheet-url');
+    if (!data.url) {
+      alert('尚未設定 Google Sheet。請先在 Zeabur 環境變數設定 GOOGLE_SHEET_ID 或 GOOGLE_SHEET_URL。');
+      return;
+    }
+    window.open(data.url, '_blank', 'noopener');
+  } catch (err) {
+    alert(`無法開啟 Google Sheet：${err.message}`);
+  }
+}
+
 async function syncPull() {
   if (!confirm('確認要從 Google Sheet 同步資料到系統？若 Google Sheet 未填案件編號，系統會保留空白並以內部識別碼管理，可後續於平台修改。')) return;
   const data = await api('/api/sync/pull', { method: 'POST' });
@@ -479,10 +491,10 @@ function bindEvents() {
 
   $('statusFilter').addEventListener('change', loadCases);
   $('searchInput').addEventListener('input', debounce(loadCases, 250));
+  $('openSheetBtn').addEventListener('click', openGoogleSheet);
   $('healthBtn').addEventListener('click', healthCheck);
   $('pullBtn').addEventListener('click', syncPull);
   $('pushBtn').addEventListener('click', syncPush);
-  $('fileInput').addEventListener('change', (event) => importExcel(event.target.files[0]));
   $('templateLink').addEventListener('click', (event) => {
     event.preventDefault();
     const url = `/api/template${state.passcode ? `?passcode=${encodeURIComponent(state.passcode)}` : ''}`;

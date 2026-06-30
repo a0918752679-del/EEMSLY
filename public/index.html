@@ -34,6 +34,7 @@
           <p>長官勾選核可後，案件自動進入後續行政流程追蹤：公文文號、發文日期、裁處字號、送達日期、繳款、通檢與結案。</p>
         </div>
         <div class="top-actions">
+          <button id="openSheetBtn" class="secondary-btn">一鍵開啟 Google Sheet 表單</button>
           <button id="healthBtn" class="secondary-btn">測試 Google Sheet</button>
           <button id="pullBtn" class="secondary-btn">從 Sheet 同步</button>
           <button id="pushBtn" class="primary-btn">推送到 Sheet</button>
@@ -64,10 +65,6 @@
         </div>
 
         <div class="action-row">
-          <label class="file-btn">
-            匯入 Excel
-            <input id="fileInput" type="file" accept=".xlsx,.xls" />
-          </label>
           <button id="exportBtn" class="secondary-btn">匯出 Google Sheet 同格式</button>
           <button id="bulkApproveBtn" class="primary-btn">勾選案件｜長官核可</button>
           <button id="bulkRejectBtn" class="danger-btn">勾選案件｜退回修正</button>
