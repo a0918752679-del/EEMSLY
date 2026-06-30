@@ -7,35 +7,21 @@
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body>
-  <div class="app-shell">
-    <aside class="sidebar">
-      <div class="brand-block">
-        <div class="brand-logo-wrap"><img src="/assets/new-taipei-logo.png" alt="新北市徽章" /></div>
-        <div>
-          <div class="brand-mark">NTPC EPB</div>
-          <div class="brand-title">聲音照相案件<br/>審核與行政追蹤</div>
-          <div class="brand-subtitle">聯韻聲學環保顧問股份有限公司</div>
-        </div>
-      </div>
-      <div class="side-line"></div>
-      <div class="side-card identity-card">
-        <span>角色定位</span>
-        <strong>新北市環保局委外顧問</strong>
-        <p>協助案件初核、長官核可、告發與通檢流程追蹤。</p>
-      </div>
-      <div class="side-mini-grid">
-        <div><b>01</b><span>Sheet同步</span></div>
-        <div><b>02</b><span>長官審核</span></div>
-        <div><b>03</b><span>行政追蹤</span></div>
-      </div>
-      <label class="passcode-block">
-        <span>內部驗證碼</span>
-        <input id="passcodeInput" type="password" placeholder="未設定可留空" />
+  <div id="loginOverlay" class="login-overlay" aria-modal="true" role="dialog">
+    <form id="loginForm" class="login-card">
+      <div class="login-logo"><img src="/assets/new-taipei-logo.png" alt="新北市徽章" /></div>
+      <div class="agency-line login-agency"><span>NTPC EPB｜Case Review Console</span></div>
+      <h1>聲音照相案件審核系統</h1>
+      <p>請先輸入內部驗證碼，驗證通過後才能進入案件審核、Google Sheet 同步與行政追蹤功能。</p>
+      <label>內部驗證碼
+        <input id="loginPasscodeInput" type="password" autocomplete="current-password" placeholder="請輸入驗證碼" />
       </label>
-      <button id="savePasscodeBtn" class="ghost-btn full">套用驗證碼</button>
-      <div class="status-box" id="healthBox">尚未測試連線</div>
-    </aside>
+      <button id="loginBtn" class="primary-btn" type="submit">登入系統</button>
+      <div id="loginMessage" class="login-message">尚未登入</div>
+    </form>
+  </div>
 
+  <div class="app-shell is-hidden" id="appShell">
     <main class="main">
       <header class="topbar hero-card">
         <div class="hero-copy">
@@ -50,6 +36,8 @@
           </div>
         </div>
         <div class="top-actions">
+          <div id="healthBox" class="top-status">系統連線尚未測試</div>
+          <button id="logoutBtn" class="ghost-btn">登出</button>
           <button id="openSheetBtn" class="secondary-btn">一鍵開啟 Google Sheet 表單</button>
           <button id="healthBtn" class="secondary-btn">測試 Google Sheet</button>
           <button id="pullBtn" class="secondary-btn">從 Sheet 同步</button>

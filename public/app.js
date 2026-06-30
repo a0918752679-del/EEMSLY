@@ -4,7 +4,7 @@ const state = {
   stats: null,
   schema: null,
   selected: new Set(),
-  passcode: localStorage.getItem('EEMS_PASSCODE') || ''
+  passcode: sessionStorage.getItem('EEMS_PASSCODE') || ''
 };
 
 const $ = (id) => document.getElementById(id);
@@ -31,7 +31,10 @@ async function api(path, options = {}) {
       const data = await res.json();
       msg = data.error || msg;
     } catch (_) {}
-    throw new Error(msg);
+    const error = new Error(msg);
+    error.status = res.status;
+    if (res.status === 401) showLogin(msg);
+    throw error;
   }
   const contentType = res.headers.get('content-type') || '';
   if (contentType.includes('application/json')) return res.json();
@@ -265,17 +268,56 @@ function fillSelect(id, options) {
 
 async function healthCheck() {
   const box = $('healthBox');
-  box.textContent = '連線測試中...';
+  if (box) box.textContent = '連線測試中...';
   try {
     const data = await api('/api/health');
-    box.innerHTML = `
-      <strong>${escapeHtml(data.service)}</strong><br>
-      系統狀態：正常<br>
-      Google Sheet：${data.googleSheets.connected ? '連線成功' : '未連線'}<br>
-      <span class="muted">${escapeHtml(data.googleSheets.message || '')}</span>
-    `;
+    if (box) {
+      box.innerHTML = `
+        <strong>系統狀態：正常</strong><br>
+        Google Sheet：${data.googleSheets.connected ? '連線成功' : '未連線'}
+      `;
+    }
+    return data;
   } catch (err) {
-    box.textContent = `連線失敗：${err.message}`;
+    if (box) box.textContent = `連線失敗：${err.message}`;
+    throw err;
+  }
+}
+
+function showLogin(message = '') {
+  const overlay = $('loginOverlay');
+  const shell = $('appShell');
+  if (overlay) overlay.classList.remove('is-hidden');
+  if (shell) shell.classList.add('is-hidden');
+  const msg = $('loginMessage');
+  if (msg) msg.textContent = message || '請先登入後使用系統';
+}
+
+function showApp() {
+  const overlay = $('loginOverlay');
+  const shell = $('appShell');
+  if (overlay) overlay.classList.add('is-hidden');
+  if (shell) shell.classList.remove('is-hidden');
+}
+
+async function login(event) {
+  if (event) event.preventDefault();
+  const input = $('loginPasscodeInput');
+  const msg = $('loginMessage');
+  state.passcode = (input?.value || '').trim();
+  if (!state.passcode) {
+    if (msg) msg.textContent = '請輸入內部驗證碼。';
+    return;
+  }
+  sessionStorage.setItem('EEMS_PASSCODE', state.passcode);
+  if (msg) msg.textContent = '驗證中...';
+  try {
+    await healthCheck();
+    showApp();
+    await loadSchema();
+    await loadCases();
+  } catch (err) {
+    showLogin(err.status === 401 ? '驗證碼錯誤，請重新輸入。' : `登入失敗：${err.message}`);
   }
 }
 
@@ -470,12 +512,12 @@ async function syncPush() {
 }
 
 function bindEvents() {
-  $('passcodeInput').value = state.passcode;
-  $('savePasscodeBtn').addEventListener('click', async () => {
-    state.passcode = $('passcodeInput').value;
-    localStorage.setItem('EEMS_PASSCODE', state.passcode);
-    await healthCheck();
-    await loadCases();
+  if ($('loginPasscodeInput')) $('loginPasscodeInput').value = state.passcode;
+  if ($('loginForm')) $('loginForm').addEventListener('submit', login);
+  if ($('logoutBtn')) $('logoutBtn').addEventListener('click', () => {
+    state.passcode = '';
+    sessionStorage.removeItem('EEMS_PASSCODE');
+    showLogin('已登出，請重新輸入驗證碼。');
   });
 
   document.querySelectorAll('.tab').forEach((tab) => {
@@ -522,13 +564,17 @@ function debounce(fn, ms) {
 
 async function init() {
   bindEvents();
+  if (!state.passcode) {
+    showLogin('請輸入內部驗證碼後登入系統。');
+    return;
+  }
   try {
+    await healthCheck();
+    showApp();
     await loadSchema();
     await loadCases();
-    await healthCheck();
   } catch (err) {
-    $('caseTbody').innerHTML = `<tr><td colspan="12" class="empty">載入失敗：${escapeHtml(err.message)}</td></tr>`;
-    $('healthBox').textContent = `系統載入失敗：${err.message}`;
+    showLogin(err.status === 401 ? '驗證碼錯誤，請重新輸入。' : `系統載入失敗：${err.message}`);
   }
 }
 

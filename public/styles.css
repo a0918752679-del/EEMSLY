@@ -1071,3 +1071,159 @@ tbody tr:hover {
     grid-template-columns: 1fr;
   }
 }
+
+/* V1.10：移除左側資訊欄，改為登入後使用 */
+.is-hidden {
+  display: none !important;
+}
+
+.app-shell {
+  display: block;
+  min-height: 100vh;
+}
+
+.main {
+  width: min(1560px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 24px 16px 36px;
+}
+
+.login-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(6, 182, 212, .24), transparent 30%),
+    radial-gradient(circle at 90% 15%, rgba(250, 204, 21, .12), transparent 28%),
+    linear-gradient(135deg, #061221 0%, #0b1830 50%, #0f172a 100%);
+}
+
+.login-card {
+  position: relative;
+  width: min(440px, 100%);
+  padding: 32px;
+  border-radius: 28px;
+  border: 1px solid rgba(255, 255, 255, .16);
+  background: linear-gradient(180deg, rgba(15, 23, 42, .96), rgba(15, 23, 42, .88));
+  color: #e2e8f0;
+  box-shadow: 0 30px 80px rgba(2, 8, 23, .42);
+  overflow: hidden;
+}
+
+.login-card::after {
+  content: "";
+  position: absolute;
+  width: 260px;
+  height: 260px;
+  right: -80px;
+  bottom: -100px;
+  background: url('/assets/new-taipei-logo.png') center/contain no-repeat;
+  opacity: .045;
+  pointer-events: none;
+}
+
+.login-logo {
+  width: 86px;
+  height: 86px;
+  display: grid;
+  place-items: center;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, .94);
+  border: 1px solid rgba(255, 255, 255, .72);
+  margin-bottom: 18px;
+  box-shadow: 0 18px 42px rgba(2, 8, 23, .32);
+}
+
+.login-logo img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+}
+
+.login-agency {
+  margin-bottom: 10px;
+}
+
+.login-card h1 {
+  color: #fff;
+  font-size: 30px;
+  letter-spacing: -.03em;
+  margin-bottom: 10px;
+}
+
+.login-card p {
+  color: #cbd5e1;
+  line-height: 1.7;
+  margin-bottom: 22px;
+}
+
+.login-card label {
+  display: grid;
+  gap: 8px;
+  color: #bfdbfe;
+  font-size: 14px;
+  font-weight: 800;
+  margin-bottom: 14px;
+}
+
+.login-card input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, .36);
+  background: rgba(2, 6, 23, .46);
+  color: #fff;
+  outline: none;
+}
+
+.login-card .primary-btn {
+  width: 100%;
+  height: 48px;
+}
+
+.login-message {
+  margin-top: 14px;
+  color: #93c5fd;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.top-status {
+  min-width: 190px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(125, 211, 252, .25);
+  background: rgba(15, 23, 42, .42);
+  color: #dbeafe;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.top-status strong {
+  color: #fff;
+}
+
+@media (max-width: 1180px) {
+  .main {
+    width: min(100vw, 100%);
+    padding: 18px 12px 28px;
+  }
+}
+
+@media (max-width: 640px) {
+  .login-card {
+    padding: 24px 20px;
+    border-radius: 24px;
+  }
+  .login-card h1 {
+    font-size: 26px;
+  }
+  .top-status,
+  .top-actions button {
+    width: 100%;
+  }
+}
