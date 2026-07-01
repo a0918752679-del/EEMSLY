@@ -4,6 +4,15 @@
 
 本系統用於局內長官審核聲音照相超標車輛案件，並銜接後續「逕行告發」與「通知到檢」行政流程追蹤。系統以科技簡約風格呈現案件狀態，長官可透過勾選核可改變案件狀態，承辦端可追蹤公文文號、發文日期、裁處字號、送達日期、繳款、通檢期限與結案情形。
 
+## V1.11 AI 輔助整合重點
+
+- 新增 AI 初核面板：資料品質檢查、案件優先排序、行政待辦提醒。
+- 每筆案件新增「AI摘要」按鈕，可查看案件摘要、品質檢查、優先等級與處理建議。
+- 新增「複製 AI 退回原因」功能，協助承辦快速產生退回補正文字。
+- 新增 LINE 查詢模擬與 `POST /line/webhook`，可供 n8n / LINE Bot 串接查車號、待審案件與行政待辦。
+- 修正加重判斷：`前次告發` 欄位僅作參考，不再因有文字就直接觸發加重。
+- AI 預設為 `heuristic` 規則模式，不需外部 API；若設定 `AI_PROVIDER=openai` 與 `OPENAI_API_KEY`，可啟用 LLM 生成摘要與 LINE 回覆。
+
 ## V1.10 調整重點
 
 - 移除左側資訊欄，主畫面改為全版審核工作區。
@@ -34,6 +43,7 @@
   - 將系統資料推送到 Google Sheet
   - 測試 Google Sheet 連線成功按鈕
 - Zeabur Docker 部署設定。
+- AI 輔助功能：初核、案件摘要、優先排序、行政待辦、退回原因與 LINE 查詢。
 
 ## 目錄
 
@@ -68,7 +78,7 @@ npm start
 開啟：
 
 ```text
-http://localhost:3000
+http://localhost:8080
 ```
 
 ## Zeabur 快速部署
@@ -106,6 +116,21 @@ GOOGLE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=base64後的service_account_json
 ```
 
+AI 輔助設定：
+
+```env
+# 預設規則模式，不需外部 API
+AI_PROVIDER=heuristic
+AI_MODEL=gpt-4.1-mini
+
+# 若要啟用 OpenAI 生成摘要與 LINE 回覆
+# AI_PROVIDER=openai
+# OPENAI_API_KEY=你的OpenAIAPIKey
+
+# LINE / n8n webhook 查詢密鑰
+LINE_WEBHOOK_SECRET=自行設定
+```
+
 ## Google Sheet 分頁
 
 建議建立以下分頁：
@@ -133,6 +158,21 @@ GOOGLE_SERVICE_ACCOUNT_JSON_BASE64=base64後的service_account_json
 5. 承辦人員進入「行政追蹤」填寫公文文號、發文日期、裁處字號、送達日期與繳款等。
 6. 完成後填入結案日期或設定已結案狀態。
 7. 可匯出 Excel 或同步回 Google Sheet。
+
+## AI API
+
+```text
+GET  /api/ai/dashboard
+GET  /api/ai/priority-list
+GET  /api/ai/admin-tasks
+GET  /api/ai/cases/:id/quality
+GET  /api/ai/cases/:id/summary
+GET  /api/ai/cases/:id/reject-reason
+POST /api/ai/chat
+POST /line/webhook
+```
+
+`/api/*` 仍受 `APP_PASSCODE` 保護；`/line/webhook` 可用 `LINE_WEBHOOK_SECRET` 保護。
 
 ## 安全提醒
 

@@ -33,6 +33,7 @@
             <span>案件分流</span>
             <span>長官核可</span>
             <span>行政追蹤</span>
+            <span>AI輔助初核</span>
           </div>
         </div>
         <div class="top-actions">
@@ -51,6 +52,24 @@
         <div class="kpi ok"><span>已核可</span><strong id="kpiApproved">0</strong></div>
         <div class="kpi info"><span>行政處理中</span><strong id="kpiAdmin">0</strong></div>
         <div class="kpi done"><span>已結案</span><strong id="kpiClosed">0</strong></div>
+      </section>
+
+
+      <section class="panel ai-panel">
+        <div class="panel-head">
+          <div>
+            <div class="eyebrow">AI Review Assistant</div>
+            <h2>AI 初核、優先排序與行政待辦</h2>
+            <p>AI 僅做資料品質檢查、案件摘要、排序與提醒，不取代長官核可或裁罰決定。</p>
+          </div>
+          <div class="toolbar">
+            <button id="aiRefreshBtn" class="secondary-btn">重新分析 AI</button>
+            <button id="aiLineTestBtn" class="ghost-btn">LINE 查詢模擬</button>
+          </div>
+        </div>
+        <div id="aiPanelBody" class="ai-panel-body">
+          <div class="muted">AI 分析載入中...</div>
+        </div>
       </section>
 
       <section class="panel case-panel">
@@ -88,13 +107,14 @@
                 <th>日期時間</th>
                 <th>地點</th>
                 <th>分貝/標準</th>
+                <th>AI檢查</th>
                 <th>公文文號</th>
                 <th>裁罰/通檢進度</th>
                 <th>操作</th>
               </tr>
             </thead>
             <tbody id="caseTbody">
-              <tr><td colspan="12" class="empty">載入中...</td></tr>
+              <tr><td colspan="13" class="empty">載入中...</td></tr>
             </tbody>
           </table>
         </div>
@@ -204,6 +224,25 @@
       <footer class="modal-actions">
         <button value="cancel" class="ghost-btn">取消</button>
         <button id="saveAdminBtn" value="default" class="primary-btn">儲存行政追蹤</button>
+      </footer>
+    </form>
+  </dialog>
+
+
+  <dialog id="aiDialog" class="modal">
+    <form method="dialog" class="modal-card ai-modal-card">
+      <header class="modal-head">
+        <div>
+          <div class="eyebrow">AI Case Assistant</div>
+          <h2 id="aiModalTitle">AI 案件輔助</h2>
+        </div>
+        <button class="icon-btn" value="cancel" aria-label="關閉">×</button>
+      </header>
+      <input type="hidden" id="aiModalCaseId" />
+      <div id="aiModalBody" class="ai-modal-body"></div>
+      <footer class="modal-actions">
+        <button id="copyRejectReasonBtn" type="button" class="danger-btn">複製 AI 退回原因</button>
+        <button value="cancel" class="primary-btn">關閉</button>
       </footer>
     </form>
   </dialog>

@@ -3,6 +3,7 @@ const state = {
   cases: [],
   stats: null,
   schema: null,
+  aiDashboard: null,
   selected: new Set(),
   passcode: sessionStorage.getItem('EEMS_PASSCODE') || ''
 };
@@ -99,7 +100,7 @@ function dbText(item) {
 
 function repeatText(item) {
   const s = item.source || {};
-  const direct = item.flags?.repeatOverLimit || item.flags?.escalated || s['是否累犯'] || s['1年內再次違反'] || s['前次告發'];
+  const direct = item.flags?.repeatOverLimit || item.flags?.escalated || s['是否累犯'] || s['1年內再次違反'];
   if (!direct) return '';
   return item.flags?.repeatNote || '車號重複超標，註明加重';
 }
@@ -149,10 +150,64 @@ function renderStatusFilter() {
   select.value = current;
 }
 
+function aiLevelBadge(quality) {
+  if (!quality) return '<span class="ai-pill ai-muted">未檢查</span>';
+  const cls = quality.level === 'error' ? 'ai-error' : quality.level === 'warning' ? 'ai-warn' : 'ai-ok';
+  return `<span class="ai-pill ${cls}">${escapeHtml(quality.label || 'AI檢查')}</span>`;
+}
+
+function findAiForCase(id) {
+  return (state.aiDashboard?.priorityList || []).find((x) => x.caseId === id) || null;
+}
+
+function renderAiDashboard() {
+  const box = $('aiPanelBody');
+  if (!box) return;
+  const data = state.aiDashboard;
+  if (!data) {
+    box.innerHTML = '<div class="muted">AI 分析尚未載入。</div>';
+    return;
+  }
+  const top = data.priorityList || [];
+  const tasks = data.tasks || [];
+  box.innerHTML = `
+    <div class="ai-metrics">
+      <div><span>高風險錯誤</span><strong>${escapeHtml(data.counts?.qualityError ?? 0)}</strong></div>
+      <div><span>建議補正</span><strong>${escapeHtml(data.counts?.qualityWarning ?? 0)}</strong></div>
+      <div><span>資料完整</span><strong>${escapeHtml(data.counts?.qualityOk ?? 0)}</strong></div>
+      <div><span>行政待辦</span><strong>${escapeHtml(data.counts?.adminTasks ?? 0)}</strong></div>
+    </div>
+    <div class="ai-columns">
+      <div>
+        <h3>AI 優先處理案件</h3>
+        ${top.slice(0, 5).map((x, i) => `
+          <button class="ai-list-item ai-open-btn" data-id="${escapeHtml(x.caseId)}">
+            <b>${i + 1}. ${escapeHtml(x.plate || '未填車號')}</b>
+            <span>${escapeHtml(x.displayNo || '')}｜${escapeHtml(x.type)}｜${escapeHtml(x.status)}</span>
+            <em>${escapeHtml(x.priority?.rank)}級｜${escapeHtml((x.priority?.reasons || []).join('、') || '一般案件')}</em>
+          </button>
+        `).join('') || '<div class="muted">目前沒有可排序案件。</div>'}
+      </div>
+      <div>
+        <h3>AI 行政待辦</h3>
+        ${tasks.slice(0, 5).map((x) => `
+          <button class="ai-list-item ai-open-btn" data-id="${escapeHtml(x.caseId)}">
+            <b>${escapeHtml(x.plate || '未填車號')}</b>
+            <span>${escapeHtml(x.title)}</span>
+            <em>${escapeHtml(x.action)}</em>
+          </button>
+        `).join('') || '<div class="muted">目前沒有明顯行政待辦。</div>'}
+      </div>
+    </div>
+  `;
+  document.querySelectorAll('.ai-open-btn').forEach((btn) => btn.addEventListener('click', () => openAiSummary(btn.dataset.id)));
+}
+
 function renderRows() {
+
   const tbody = $('caseTbody');
   if (!state.cases.length) {
-    tbody.innerHTML = `<tr><td colspan="12" class="empty">目前沒有${escapeHtml(state.type)}案件。可先從 Google Sheet 同步。</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="13" class="empty">目前沒有${escapeHtml(state.type)}案件。可先從 Google Sheet 同步。</td></tr>`;
     return;
   }
 
@@ -179,6 +234,7 @@ function renderRows() {
         <td>${escapeHtml(caseDate(item))}</td>
         <td>${escapeHtml(caseLocation(item))}</td>
         <td><strong>${escapeHtml(dbText(item))}</strong></td>
+        <td>${aiLevelBadge(findAiForCase(rowKey)?.quality)}<div class="case-meta">${escapeHtml(findAiForCase(rowKey)?.priority?.rank || '')}級 ${escapeHtml(findAiForCase(rowKey)?.priority?.score ?? '')}</div></td>
         <td>${escapeHtml(item.admin?.officialDocumentNo || '')}</td>
         <td>
           <strong>${escapeHtml(progressText(item))}</strong>
@@ -186,6 +242,7 @@ function renderRows() {
         </td>
         <td>
           <div class="row-actions">
+            <button class="secondary-btn small-btn ai-summary-btn" data-id="${escapeHtml(rowKey)}">AI摘要</button>
             <button class="secondary-btn small-btn admin-btn" data-id="${escapeHtml(rowKey)}">行政追蹤</button>
             <button class="secondary-btn small-btn edit-btn" data-id="${escapeHtml(rowKey)}">修改</button>
             <button class="danger-btn small-btn reject-btn" data-id="${escapeHtml(rowKey)}">退回</button>
@@ -210,6 +267,10 @@ function renderRows() {
       if (event.currentTarget.checked) await reviewOne(id, true);
       else await reviewOne(id, false, '取消核可或退回補正');
     });
+  });
+
+  document.querySelectorAll('.ai-summary-btn').forEach((el) => {
+    el.addEventListener('click', () => openAiSummary(el.dataset.id));
   });
 
   document.querySelectorAll('.admin-btn').forEach((el) => {
@@ -240,7 +301,17 @@ async function loadSchema() {
   fillSelect('inspectionStatusInput', state.schema.inspectionStatusOptions);
 }
 
+async function loadAiDashboard() {
+  try {
+    state.aiDashboard = await api('/api/ai/dashboard');
+    renderAiDashboard();
+  } catch (err) {
+    console.warn('AI dashboard failed:', err);
+  }
+}
+
 async function loadCases() {
+
   const params = new URLSearchParams();
   params.set('type', state.type);
   const status = $('statusFilter').value;
@@ -252,8 +323,10 @@ async function loadCases() {
   state.stats = data.stats;
   updateKpi(data.stats);
   $('currentTypeLabel').textContent = state.type;
+  await loadAiDashboard();
   renderRows();
 }
+
 
 function fillSelect(id, options) {
   const el = $(id);
@@ -485,6 +558,40 @@ async function saveAdmin(event) {
   await loadCases();
 }
 
+
+async function openAiSummary(id) {
+  const data = await api(`/api/ai/cases/${encodeURIComponent(id)}/summary`);
+  $('aiModalTitle').textContent = `AI 案件輔助｜${data.priority?.rank || ''}級｜分數 ${data.priority?.score ?? 0}`;
+  $('aiModalCaseId').value = id;
+  const qualityItems = [
+    ...(data.quality?.issues || []).map((x) => `<li class="danger-text">${escapeHtml(x)}</li>`),
+    ...(data.quality?.warnings || []).map((x) => `<li class="warn-text">${escapeHtml(x)}</li>`),
+    ...(data.quality?.ok || []).map((x) => `<li>${escapeHtml(x)}</li>`)
+  ].join('');
+  $('aiModalBody').innerHTML = `
+    ${data.llmText ? `<div class="ai-summary-box"><h3>AI 生成摘要</h3><p>${escapeHtml(data.llmText)}</p></div>` : ''}
+    <div class="ai-summary-box"><h3>規則摘要</h3><p>${escapeHtml(data.summary)}</p></div>
+    <div class="ai-summary-box"><h3>AI 建議</h3><p>${escapeHtml(data.recommendation)}</p></div>
+    <div class="ai-summary-box"><h3>品質檢查</h3><ul>${qualityItems || '<li>沒有明顯異常。</li>'}</ul></div>
+    <div class="ai-summary-box"><h3>優先原因</h3><p>${escapeHtml((data.priority?.reasons || []).join('、') || '一般案件')}</p></div>
+  `;
+  $('aiDialog').showModal();
+}
+
+async function copyAiRejectReason() {
+  const id = $('aiModalCaseId').value;
+  const data = await api(`/api/ai/cases/${encodeURIComponent(id)}/reject-reason`);
+  await navigator.clipboard.writeText(data.reason);
+  alert('已複製 AI 建議退回原因。');
+}
+
+async function askAiLine() {
+  const query = prompt('請輸入 LINE Bot 模擬查詢，例如：查 ABC-1234、今天待審案件、行政待辦');
+  if (!query) return;
+  const data = await api('/api/ai/chat', { method: 'POST', body: JSON.stringify({ query }) });
+  alert(data.answer);
+}
+
 async function openGoogleSheet() {
   try {
     const data = await api('/api/sheet-url');
@@ -537,6 +644,9 @@ function bindEvents() {
   $('healthBtn').addEventListener('click', healthCheck);
   $('pullBtn').addEventListener('click', syncPull);
   $('pushBtn').addEventListener('click', syncPush);
+  if ($('aiRefreshBtn')) $('aiRefreshBtn').addEventListener('click', loadAiDashboard);
+  if ($('aiLineTestBtn')) $('aiLineTestBtn').addEventListener('click', askAiLine);
+  if ($('copyRejectReasonBtn')) $('copyRejectReasonBtn').addEventListener('click', copyAiRejectReason);
   $('templateLink').addEventListener('click', (event) => {
     event.preventDefault();
     const url = `/api/template${state.passcode ? `?passcode=${encodeURIComponent(state.passcode)}` : ''}`;

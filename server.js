@@ -21,6 +21,8 @@ const TEMPLATE_FILE = path.join(ROOT, 'templates', 'EEMS案件審核匯入匯出
 const UPLOAD_DIR = path.join(DATA_DIR, 'uploads');
 
 const upload = multer({ dest: UPLOAD_DIR });
+const AI_PROVIDER = (process.env.AI_PROVIDER || 'heuristic').toLowerCase();
+const AI_MODEL = process.env.AI_MODEL || 'gpt-4.1-mini';
 
 fs.mkdirSync(DATA_DIR, { recursive: true });
 fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -155,7 +157,8 @@ function parseBool(value) {
 }
 
 function isRepeatSource(source = {}) {
-  return parseBool(source['是否累犯']) || parseBool(source['1年內再次違反']) || normalizeText(source['前次告發']);
+  // 修正：前次告發僅作為人工參考，不再因欄位有文字就直接判斷加重。
+  return parseBool(source['是否累犯']) || parseBool(source['1年內再次違反']);
 }
 
 function caseNeedsEscalation(item) {
@@ -463,6 +466,263 @@ function stats(cases) {
   };
 }
 
+
+function parseNumber(value) {
+  const match = normalizeText(value).replace(',', '.').match(/-?\d+(?:\.\d+)?/);
+  return match ? Number(match[0]) : null;
+}
+
+function parseTaipeiDate(value) {
+  const v = normalizeText(value);
+  if (!v) return null;
+  const roc = v.match(/^(\d{2,3})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (roc) return new Date(Date.UTC(Number(roc[1]) + 1911, Number(roc[2]) - 1, Number(roc[3])));
+  const ce = v.match(/^(\d{4})[./-](\d{1,2})[./-](\d{1,2})/);
+  if (ce) return new Date(Date.UTC(Number(ce[1]), Number(ce[2]) - 1, Number(ce[3])));
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function daysBetweenToday(value) {
+  const d = parseTaipeiDate(value);
+  if (!d) return null;
+  const today = parseTaipeiDate(todayTaipeiDate());
+  return Math.round((d.getTime() - today.getTime()) / 86400000);
+}
+
+function plateFormatOk(plate) {
+  const p = normalizeText(plate).toUpperCase().replace(/\s+/g, '');
+  if (!p) return false;
+  return /^[A-Z0-9]{2,4}-?[A-Z0-9]{2,4}$/.test(p) && p.length >= 5;
+}
+
+function aiQualityCheck(item) {
+  const s = item.source || {};
+  const issues = [];
+  const warnings = [];
+  const ok = [];
+  const db = parseNumber(s['背景修正後分貝']);
+  const std = parseNumber(s['管制標準']);
+  const limit = parseNumber(s['路段限速'] || s['限速']);
+  const plate = normalizeText(s['車號']);
+  const location = caseLocationServer(item);
+  if (!publicCaseNo(item)) warnings.push('案件編號空白：可匯入，但建議行政處理前補正。');
+  else ok.push('案件編號已填。');
+  if (!plate) issues.push('車號空白。');
+  else if (!plateFormatOk(plate)) warnings.push('車號格式疑似異常，建議人工確認。');
+  else ok.push('車號格式正常。');
+  if (db === null) issues.push('背景修正後分貝缺漏或無法判讀。');
+  if (std === null) warnings.push('管制標準缺漏，無法自動確認超標條件。');
+  if (db !== null && std !== null) {
+    if (db >= std) ok.push(`背景修正後 ${db}dB，高於標準 ${std}dB，超標 ${Number((db - std).toFixed(1))}dB。`);
+    else issues.push(`背景修正後 ${db}dB 未達管制標準 ${std}dB，請確認是否應列案。`);
+  }
+  if (limit !== null && std !== null) {
+    if (limit <= 50 && std !== 86) warnings.push('限速 50km/h 以下通常應對應 86dB，請確認管制標準。');
+    if (limit > 50 && limit <= 70 && std !== 90) warnings.push('限速 50–70km/h 通常應對應 90dB，請確認管制標準。');
+  }
+  if (!normalizeText(s['量測日期'])) issues.push('量測日期空白。');
+  else ok.push('量測日期已填。');
+  if (!location) warnings.push('量測位置地點空白或不足。');
+  if (item.flags?.plateRepeatCount > 1) warnings.push(`同車號目前累計 ${item.flags.plateRepeatCount} 筆，建議人工確認是否屬重複超標或應加重。`);
+  const level = issues.length ? 'error' : warnings.length ? 'warning' : 'ok';
+  const label = level === 'error' ? '高風險錯誤' : level === 'warning' ? '建議補正' : '資料完整';
+  return { level, label, issues, warnings, ok, checkedAt: nowTaipei() };
+}
+
+function caseLocationServer(item) {
+  const s = item.source || {};
+  return firstNonEmpty(s['量測位置地點'], `${s['便於複製(行政區)'] || ''}${s['便於複製(路段)'] || ''}`);
+}
+
+function dbTextServer(item) {
+  const s = item.source || {};
+  return [s['背景修正後分貝'], s['管制標準']].filter((v) => normalizeText(v)).join(' / ');
+}
+
+function aiPriority(item) {
+  const q = aiQualityCheck(item);
+  const s = item.source || {};
+  const db = parseNumber(s['背景修正後分貝']);
+  const std = parseNumber(s['管制標準']);
+  let score = 0;
+  const reasons = [];
+  if (db !== null && std !== null && db >= std) {
+    const over = db - std;
+    score += Math.min(40, Math.round(over * 6));
+    reasons.push(`超標 ${Number(over.toFixed(1))}dB`);
+  }
+  if (item.status === '待長官審核') { score += 18; reasons.push('待長官審核'); }
+  if (item.status === '行政處理中') { score += 12; reasons.push('行政處理中'); }
+  if (item.flags?.plateRepeatCount > 1 || item.flags?.repeatOverLimit || item.flags?.escalated) { score += 20; reasons.push('疑似重複超標／加重'); }
+  if (q.level === 'error') { score += 16; reasons.push('資料有高風險錯誤'); }
+  if (q.level === 'warning') { score += 8; reasons.push('資料建議補正'); }
+  const due = daysBetweenToday(item.admin?.inspectionDueDate);
+  if (due !== null && due <= 3 && item.status !== '已結案') { score += 18; reasons.push(`通檢期限剩 ${due} 日`); }
+  if (item.review?.chiefApproved && !item.admin?.officialDocumentNo && item.status !== '已結案') { score += 15; reasons.push('已核可但未填公文文號'); }
+  if (item.type === '告發' && item.review?.chiefApproved && !item.admin?.dispositionNo && item.status !== '已結案') { score += 10; reasons.push('已核可但未填裁處字號'); }
+  const rank = score >= 70 ? 'S' : score >= 45 ? 'A' : score >= 25 ? 'B' : 'C';
+  return { score, rank, reasons };
+}
+
+function aiSummary(item) {
+  const s = item.source || {};
+  const q = aiQualityCheck(item);
+  const p = aiPriority(item);
+  const db = parseNumber(s['背景修正後分貝']);
+  const std = parseNumber(s['管制標準']);
+  const overText = db !== null && std !== null ? `，超標 ${Number((db - std).toFixed(1))}dB` : '';
+  const title = displayCaseTitle(item);
+  const summary = `本案為${item.type}案件，案件識別為 ${title || '未填案件編號'}，車號 ${s['車號'] || '未填'}，於 ${[s['量測日期'], s['稽查時間']].filter(Boolean).join(' ') || '未填量測時間'} 在 ${caseLocationServer(item) || '未填地點'} 測得 ${dbTextServer(item) || '未填分貝/標準'}${overText}。目前狀態為「${item.status || '未分類'}」，AI 優先等級為 ${p.rank} 級。`;
+  const recommendation = q.level === 'error'
+    ? '建議先退回或人工補正後再送長官核可。'
+    : item.status === '待長官審核'
+      ? '資料未見重大阻卻事項，可供長官審核參考；仍應由承辦確認原始影像與法定要件。'
+      : item.review?.chiefApproved
+        ? '已核可案件，建議依行政待辦提醒補齊公文、裁處、送達、繳款或通檢進度。'
+        : '建議由承辦確認案件狀態與補件需求。';
+  return { summary, recommendation, quality: q, priority: p };
+}
+
+function aiRejectReason(item) {
+  const q = aiQualityCheck(item);
+  const reasons = [...q.issues, ...q.warnings];
+  if (!reasons.length) reasons.push('案件仍需承辦補充原始佐證資料或確認法定要件。');
+  return `本案建議退回補正，原因如下：\n${reasons.map((r, i) => `${i + 1}. ${r}`).join('\n')}\n請補正後重新送審。`;
+}
+
+function aiAdminTasks(cases) {
+  return refreshRepeatFlags(cases).flatMap((item) => {
+    const tasks = [];
+    if (item.status === '已結案') return tasks;
+    if (item.review?.chiefApproved && !item.admin?.officialDocumentNo) tasks.push({ level: 'high', caseId: caseKey(item), title: '已核可但未填公文文號', action: '請確認是否已發文並補填公文文號。' });
+    if (item.type === '告發' && item.review?.chiefApproved && !item.admin?.dispositionNo) tasks.push({ level: 'medium', caseId: caseKey(item), title: '告發案件未填裁處字號', action: '請確認裁處書製作進度。' });
+    const due = daysBetweenToday(item.admin?.inspectionDueDate);
+    if (due !== null && due <= 7 && item.type === '通檢') tasks.push({ level: due <= 3 ? 'high' : 'medium', caseId: caseKey(item), title: `通檢期限剩 ${due} 日`, action: '請確認通知、到檢與後續追蹤。' });
+    if (item.admin?.officialDocumentNo && !item.admin?.deliveryDate) tasks.push({ level: 'medium', caseId: caseKey(item), title: '已發文但未填送達日期', action: '請補填送達日期或確認送達狀態。' });
+    return tasks.map((task) => ({ ...task, type: item.type, plate: item.source?.['車號'] || '', displayNo: displayCaseTitle(item), status: item.status }));
+  }).sort((a, b) => {
+    const order = { high: 0, medium: 1, low: 2 };
+    return (order[a.level] ?? 9) - (order[b.level] ?? 9);
+  });
+}
+
+function aiDashboard(cases) {
+  const refreshed = refreshRepeatFlags(cases);
+  const quality = refreshed.map((item) => ({ item, quality: aiQualityCheck(item), priority: aiPriority(item) }));
+  const priorityList = quality
+    .map(({ item, quality, priority }) => ({ caseId: caseKey(item), displayNo: displayCaseTitle(item), type: item.type, plate: item.source?.['車號'] || '', status: item.status, quality, priority }))
+    .sort((a, b) => b.priority.score - a.priority.score)
+    .slice(0, 10);
+  const tasks = aiAdminTasks(refreshed).slice(0, 10);
+  return {
+    provider: AI_PROVIDER,
+    model: AI_MODEL,
+    generatedAt: nowTaipei(),
+    counts: {
+      qualityError: quality.filter((x) => x.quality.level === 'error').length,
+      qualityWarning: quality.filter((x) => x.quality.level === 'warning').length,
+      qualityOk: quality.filter((x) => x.quality.level === 'ok').length,
+      adminTasks: aiAdminTasks(refreshed).length
+    },
+    priorityList,
+    tasks
+  };
+}
+
+function aiLineAnswer(query, cases) {
+  const q = normalizeText(query).toLowerCase();
+  const refreshed = refreshRepeatFlags(cases);
+  if (!q) return '請輸入查詢條件，例如：查 ABC-1234、今天待審案件、行政待辦。';
+  if (q.includes('待審')) {
+    const pending = refreshed.filter((c) => c.status === '待長官審核');
+    return `目前待長官審核 ${pending.length} 件。\n${pending.slice(0, 5).map((c, i) => `${i + 1}. ${c.source?.['車號'] || '未填車號'}｜${displayCaseTitle(c)}｜${caseLocationServer(c) || '未填地點'}`).join('\n') || '目前沒有待審案件。'}`;
+  }
+  if (q.includes('待辦') || q.includes('逾期')) {
+    const tasks = aiAdminTasks(refreshed).slice(0, 8);
+    return `AI 行政待辦 ${tasks.length} 件：\n${tasks.map((t, i) => `${i + 1}. ${t.plate || '未填車號'}｜${t.title}｜${t.action}`).join('\n') || '目前沒有明顯行政待辦。'}`;
+  }
+  const hit = refreshed.find((c) => JSON.stringify(c).toLowerCase().includes(q.replace(/^查\s*/, '')));
+  if (!hit) return '查無符合案件，請改用車號、案件編號、稽查單號或地點查詢。';
+  const sum = aiSummary(hit);
+  return `${sum.summary}\nAI 建議：${sum.recommendation}`;
+}
+
+
+function safeCaseForAi(item) {
+  const s = item.source || {};
+  return {
+    caseId: displayCaseTitle(item),
+    type: item.type,
+    status: item.status,
+    plateMasked: normalizeText(s['車號']).replace(/(.{2}).+(.{2})/, '$1****$2'),
+    vehicleType: s['車種'] || '',
+    measureDate: s['量測日期'] || '',
+    measureTime: s['稽查時間'] || '',
+    districtOrRoad: firstNonEmpty(s['便於複製(行政區)'], s['便於複製(路段)'], s['量測位置地點']),
+    dbCorrected: s['背景修正後分貝'] || '',
+    standardDb: s['管制標準'] || '',
+    review: item.review || {},
+    admin: item.admin || {},
+    flags: item.flags || {}
+  };
+}
+
+async function callOpenAiText(systemPrompt, userPayload) {
+  if (AI_PROVIDER !== 'openai' || !process.env.OPENAI_API_KEY) return '';
+  const endpoint = process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1/chat/completions';
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
+    },
+    body: JSON.stringify({
+      model: AI_MODEL,
+      temperature: 0.2,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: JSON.stringify(userPayload) }
+      ]
+    })
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`OpenAI API 呼叫失敗：${response.status} ${text.slice(0, 200)}`);
+  }
+  const data = await response.json();
+  return data?.choices?.[0]?.message?.content?.trim() || '';
+}
+
+async function aiSummaryEnhanced(item) {
+  const base = aiSummary(item);
+  const llmText = await callOpenAiText(
+    '你是新北市環保局聲音照相案件審核輔助工具。請根據脫敏案件資料，用繁體中文產生精簡案件摘要與承辦建議。不得主張 AI 可取代長官核可或裁罰決定。',
+    { case: safeCaseForAi(item), base }
+  );
+  return llmText ? { ...base, llmText } : base;
+}
+
+async function aiRejectReasonEnhanced(item) {
+  const base = aiRejectReason(item);
+  const llmText = await callOpenAiText(
+    '你是行政案件補正文字助手。請根據脫敏案件資料與規則檢查結果，產生可貼入退回原因欄位的繁體中文文字，條列、精簡、避免個資。',
+    { case: safeCaseForAi(item), baseRejectReason: base, quality: aiQualityCheck(item) }
+  );
+  return llmText || base;
+}
+
+async function aiLineAnswerEnhanced(query, cases) {
+  const base = aiLineAnswer(query, cases);
+  if (AI_PROVIDER !== 'openai' || !process.env.OPENAI_API_KEY) return base;
+  const dashboard = aiDashboard(cases);
+  const llmText = await callOpenAiText(
+    '你是 LINE Bot 查詢助理。請根據系統已計算的結果回覆繁體中文，簡潔、適合 LINE 訊息，不要揭露個資。',
+    { query, baseAnswer: base, dashboard: { counts: dashboard.counts, priorityList: dashboard.priorityList.slice(0, 5), tasks: dashboard.tasks.slice(0, 5) } }
+  );
+  return llmText || base;
+}
+
 function authGuard(req, res, next) {
   const required = process.env.APP_PASSCODE;
   if (!required) return next();
@@ -595,6 +855,56 @@ app.get('/api/template', (req, res) => {
   res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
   res.end(buffer);
 });
+
+app.get('/api/ai/dashboard', (req, res) => {
+  res.json(aiDashboard(readCases()));
+});
+
+app.get('/api/ai/priority-list', (req, res) => {
+  const items = refreshRepeatFlags(readCases())
+    .map((item) => ({ caseId: caseKey(item), displayNo: displayCaseTitle(item), type: item.type, plate: item.source?.['車號'] || '', status: item.status, quality: aiQualityCheck(item), priority: aiPriority(item) }))
+    .sort((a, b) => b.priority.score - a.priority.score);
+  res.json({ ok: true, items });
+});
+
+app.get('/api/ai/admin-tasks', (req, res) => {
+  res.json({ ok: true, items: aiAdminTasks(readCases()) });
+});
+
+app.get('/api/ai/cases/:id/quality', (req, res) => {
+  const item = refreshRepeatFlags(readCases()).find((c) => caseKey(c) === req.params.id || normalizeText(c.id) === req.params.id);
+  if (!item) return res.status(404).json({ error: '找不到案件' });
+  res.json({ ok: true, caseId: caseKey(item), quality: aiQualityCheck(item), priority: aiPriority(item) });
+});
+
+app.get('/api/ai/cases/:id/summary', async (req, res) => {
+  const item = refreshRepeatFlags(readCases()).find((c) => caseKey(c) === req.params.id || normalizeText(c.id) === req.params.id);
+  if (!item) return res.status(404).json({ error: '找不到案件' });
+  try {
+    res.json({ ok: true, caseId: caseKey(item), ...(await aiSummaryEnhanced(item)) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+app.get('/api/ai/cases/:id/reject-reason', async (req, res) => {
+  const item = refreshRepeatFlags(readCases()).find((c) => caseKey(c) === req.params.id || normalizeText(c.id) === req.params.id);
+  if (!item) return res.status(404).json({ error: '找不到案件' });
+  try {
+    res.json({ ok: true, caseId: caseKey(item), reason: await aiRejectReasonEnhanced(item) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
+app.post('/api/ai/chat', async (req, res) => {
+  try {
+    res.json({ ok: true, answer: await aiLineAnswerEnhanced(req.body?.query || req.body?.message || '', readCases()) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
+  }
+});
+
 
 app.patch('/api/cases/:id/update', (req, res) => {
   const cases = readCases();
@@ -802,6 +1112,19 @@ app.post('/api/sync/push', async (req, res) => {
     res.json({ ok: true, pushed: cases.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+
+app.post('/line/webhook', async (req, res) => {
+  const token = process.env.LINE_WEBHOOK_SECRET;
+  const provided = req.header('x-line-webhook-secret') || req.query.secret;
+  if (token && provided !== token) return res.status(403).json({ error: 'LINE webhook secret 不正確' });
+  const message = req.body?.message || req.body?.events?.[0]?.message?.text || req.body?.query || '';
+  try {
+    res.json({ ok: true, answer: await aiLineAnswerEnhanced(message, readCases()) });
+  } catch (err) {
+    res.status(502).json({ error: err.message });
   }
 });
 

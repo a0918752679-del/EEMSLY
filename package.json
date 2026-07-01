@@ -1,7 +1,7 @@
 {
   "name": "ntpc-eems-case-review-system",
-  "version": "1.10.0",
-  "description": "新北市環保局聲音照相超標車輛案件審核、Google Sheet同格式匯入匯出與行政流程追蹤系統 V1.6",
+  "version": "1.11.0",
+  "description": "新北市環保局聲音照相超標車輛案件審核、Google Sheet同步、行政流程追蹤與AI輔助初核系統 V1.11",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
